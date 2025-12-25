@@ -22,14 +22,28 @@ pub struct GameState {
     pub high_score: u32,
     pub level: u32,
     pub lines_cleared: u32,
+    pub combo_count: i32,
     pub game_over: bool,
     pub fall_timer: f32,
     pub lock_timer: f32,
+    pub lock_reset_count: u32,
     pub is_on_ground: bool,
     pub bag_randomizer: BagRandomizer,
 }
 
 impl GameState {
+    /// Get gravity speed (fall speed) for current level using official Tetris Guidelines curve
+    fn get_gravity_speed(level: u32) -> f32 {
+        // Find the appropriate speed from the gravity curve
+        for &(curve_level, speed) in GRAVITY_CURVE.iter().rev() {
+            if level >= curve_level {
+                return speed;
+            }
+        }
+        // Default to level 1 speed if somehow below level 1
+        GRAVITY_CURVE[0].1
+    }
+
     pub fn new() -> Self {
         let mut bag_randomizer = BagRandomizer::new();
         let current_type = bag_randomizer.next();
@@ -49,9 +63,11 @@ impl GameState {
             high_score,
             level: 1,
             lines_cleared: 0,
+            combo_count: -1,
             game_over: false,
             fall_timer: 0.0,
             lock_timer: 0.0,
+            lock_reset_count: 0,
             is_on_ground: false,
             bag_randomizer,
         }
@@ -79,7 +95,7 @@ impl GameState {
         let fall_speed = if soft_drop {
             FAST_DROP_SPEED
         } else {
-            INITIAL_FALL_SPEED / (self.level as f32)
+            Self::get_gravity_speed(self.level)
         };
 
         self.fall_timer += delta_time;
@@ -90,7 +106,8 @@ impl GameState {
 
         if self.is_on_ground {
             self.lock_timer += delta_time;
-            if self.lock_timer >= LOCK_DELAY {
+            // Force lock if timer exceeded OR max resets reached
+            if self.lock_timer >= LOCK_DELAY || self.lock_reset_count >= MAX_LOCK_RESETS {
                 self.lock_piece();
             }
         } else {
@@ -109,21 +126,35 @@ impl GameState {
             }
         }
 
-        // Reset lock timer if piece was moved off ground
+        // Reset lock timer if piece was moved off ground (with limit)
         if was_on_ground && !self.is_on_ground {
-            self.lock_timer = 0.0;
+            if self.lock_reset_count < MAX_LOCK_RESETS {
+                self.lock_timer = 0.0;
+                self.lock_reset_count += 1;
+            }
+            // If max resets reached, don't reset timer (force lock on next ground contact)
         }
     }
 
     pub fn move_left(&mut self) {
         if !self.check_collision(-1, 0) {
             self.current_piece.x -= 1;
+            // Reset lock timer if on ground and haven't exceeded max resets
+            if self.is_on_ground && self.lock_reset_count < MAX_LOCK_RESETS {
+                self.lock_timer = 0.0;
+                self.lock_reset_count += 1;
+            }
         }
     }
 
     pub fn move_right(&mut self) {
         if !self.check_collision(1, 0) {
             self.current_piece.x += 1;
+            // Reset lock timer if on ground and haven't exceeded max resets
+            if self.is_on_ground && self.lock_reset_count < MAX_LOCK_RESETS {
+                self.lock_timer = 0.0;
+                self.lock_reset_count += 1;
+            }
         }
     }
 
@@ -131,21 +162,30 @@ impl GameState {
         let mut test_piece = self.current_piece.clone();
         test_piece.rotate_cw();
 
+        let mut rotated = false;
+
         // Try direct rotation
         if !self.check_collision_piece(&test_piece) {
             self.current_piece = test_piece;
-            return;
+            rotated = true;
+        } else {
+            // Wall kick attempts (basic SRS-inspired)
+            let kicks = vec![(1, 0), (-1, 0), (0, -1), (1, -1), (-1, -1)];
+            for (dx, dy) in kicks {
+                test_piece.x = self.current_piece.x + dx;
+                test_piece.y = self.current_piece.y + dy;
+                if !self.check_collision_piece(&test_piece) {
+                    self.current_piece = test_piece;
+                    rotated = true;
+                    break;
+                }
+            }
         }
 
-        // Wall kick attempts (basic SRS-inspired)
-        let kicks = vec![(1, 0), (-1, 0), (0, -1), (1, -1), (-1, -1)];
-        for (dx, dy) in kicks {
-            test_piece.x = self.current_piece.x + dx;
-            test_piece.y = self.current_piece.y + dy;
-            if !self.check_collision_piece(&test_piece) {
-                self.current_piece = test_piece;
-                return;
-            }
+        // Reset lock timer if rotation succeeded and piece is on ground
+        if rotated && self.is_on_ground && self.lock_reset_count < MAX_LOCK_RESETS {
+            self.lock_timer = 0.0;
+            self.lock_reset_count += 1;
         }
     }
 
@@ -153,21 +193,30 @@ impl GameState {
         let mut test_piece = self.current_piece.clone();
         test_piece.rotate_ccw();
 
+        let mut rotated = false;
+
         // Try direct rotation
         if !self.check_collision_piece(&test_piece) {
             self.current_piece = test_piece;
-            return;
+            rotated = true;
+        } else {
+            // Wall kick attempts
+            let kicks = vec![(1, 0), (-1, 0), (0, -1), (1, -1), (-1, -1)];
+            for (dx, dy) in kicks {
+                test_piece.x = self.current_piece.x + dx;
+                test_piece.y = self.current_piece.y + dy;
+                if !self.check_collision_piece(&test_piece) {
+                    self.current_piece = test_piece;
+                    rotated = true;
+                    break;
+                }
+            }
         }
 
-        // Wall kick attempts
-        let kicks = vec![(1, 0), (-1, 0), (0, -1), (1, -1), (-1, -1)];
-        for (dx, dy) in kicks {
-            test_piece.x = self.current_piece.x + dx;
-            test_piece.y = self.current_piece.y + dy;
-            if !self.check_collision_piece(&test_piece) {
-                self.current_piece = test_piece;
-                return;
-            }
+        // Reset lock timer if rotation succeeded and piece is on ground
+        if rotated && self.is_on_ground && self.lock_reset_count < MAX_LOCK_RESETS {
+            self.lock_timer = 0.0;
+            self.lock_reset_count += 1;
         }
     }
 
@@ -255,10 +304,20 @@ impl GameState {
             }
         }
 
-        self.clear_lines();
-        self.spawn_next_piece();
+        // Check for line clears
+        let lines_cleared = self.clear_lines();
+        
+        // Only spawn next piece if no lines are being cleared
+        // (if lines are being cleared, spawn will happen after animation in complete_line_clear)
+        if !lines_cleared {
+            // No lines cleared - reset combo counter
+            self.combo_count = -1;
+            self.spawn_next_piece();
+        }
+        
         self.can_hold = true;
         self.lock_timer = 0.0;
+        self.lock_reset_count = 0;
         self.is_on_ground = false;
     }
 
@@ -267,6 +326,7 @@ impl GameState {
         self.current_piece = Tetromino::new(next_type);
         self.next_piece = self.bag_randomizer.peek();
         self.fall_timer = 0.0;
+        self.lock_reset_count = 0;
 
         // Check if game over (piece can't spawn)
         if self.check_collision_piece(&self.current_piece) {
@@ -278,7 +338,7 @@ impl GameState {
         }
     }
 
-    fn clear_lines(&mut self) {
+    fn clear_lines(&mut self) -> bool {
         let mut lines_to_clear = Vec::new();
 
         for y in 0..GRID_HEIGHT {
@@ -288,13 +348,15 @@ impl GameState {
         }
 
         if lines_to_clear.is_empty() {
-            return;
+            return false;
         }
 
         // Start the line clear animation
         self.lines_being_cleared = lines_to_clear;
         self.state = State::LineClearAnimation;
         self.line_clear_timer = 0.0;
+        
+        true
     }
 
     fn complete_line_clear(&mut self) {
@@ -328,6 +390,13 @@ impl GameState {
 
         self.score += base_score * self.level;
 
+        // Combo bonus - increment combo and add bonus score
+        self.combo_count += 1;
+        if self.combo_count > 0 {
+            let combo_bonus = SCORE_COMBO_BONUS * (self.combo_count as u32) * self.level;
+            self.score += combo_bonus;
+        }
+
         // Update level (every 10 lines)
         self.level = (self.lines_cleared / 10) + 1;
 
@@ -335,6 +404,9 @@ impl GameState {
         if self.score > self.high_score {
             self.high_score = self.score;
         }
+
+        // NOW spawn the next piece after lines have been removed from grid
+        self.spawn_next_piece();
     }
 
     pub fn draw(&self) {
@@ -435,6 +507,11 @@ impl GameState {
     }
 
     fn draw_ghost_piece(&self) {
+        // Don't draw ghost piece during line clear animation
+        if self.state != State::Playing {
+            return;
+        }
+
         let ghost_y = self.calculate_ghost_y();
         let blocks = self.current_piece.get_blocks();
         let mut color = self.current_piece.color();
@@ -454,6 +531,12 @@ impl GameState {
     }
 
     fn draw_current_piece(&self) {
+        // Don't draw current piece during line clear animation
+        // (it's already been locked into the grid)
+        if self.state != State::Playing {
+            return;
+        }
+
         let blocks = self.current_piece.get_blocks();
         let color = self.current_piece.color();
 

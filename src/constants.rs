@@ -18,10 +18,12 @@ pub const UI_OFFSET_X: f32 = GRID_OFFSET_X + (GRID_WIDTH as f32 * BLOCK_SIZE) + 
 pub const UI_OFFSET_Y: f32 = 50.0;
 
 // Game timing
-pub const INITIAL_FALL_SPEED: f32 = 1.0; // Base fall speed in seconds per row
+#[allow(dead_code)]
+pub const INITIAL_FALL_SPEED: f32 = 1.0; // Base fall speed in seconds per row (kept for reference, using GRAVITY_CURVE instead)
 pub const FAST_DROP_SPEED: f32 = 0.05; // seconds per row when holding down
 pub const LOCK_DELAY: f32 = 0.5; // seconds before piece locks
 pub const LINE_CLEAR_ANIMATION_DURATION: f32 = 0.2; // seconds for line clear animation
+pub const MAX_LOCK_RESETS: u32 = 15; // Maximum number of times lock timer can be reset (prevents infinity spin)
 
 // Gravity speed curve (Standard Tetris Guidelines)
 // Returns fall speed in seconds per row for each level

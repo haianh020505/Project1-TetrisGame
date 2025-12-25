@@ -19,7 +19,8 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut game_state = GameState::new();
-    let mut last_move_time = 0.0;
+    let mut last_move_left = 0.0;
+    let mut last_move_right = 0.0;
     let move_delay = 0.15; // Delay between moves in seconds
 
     loop {
@@ -30,14 +31,25 @@ async fn main() {
         if !game_state.game_over {
             // Block input during line clear animation
             if game_state.state == game::State::Playing {
-                // Movement
-                if is_key_down(KeyCode::Left) && current_time - last_move_time > move_delay {
-                    game_state.move_left();
-                    last_move_time = current_time;
+                // Movement - separate timers for left and right to prevent sticky input
+                if is_key_down(KeyCode::Left) {
+                    if current_time - last_move_left > move_delay {
+                        game_state.move_left();
+                        last_move_left = current_time;
+                    }
+                } else {
+                    // Reset timer when key is released
+                    last_move_left = 0.0;
                 }
-                if is_key_down(KeyCode::Right) && current_time - last_move_time > move_delay {
-                    game_state.move_right();
-                    last_move_time = current_time;
+                
+                if is_key_down(KeyCode::Right) {
+                    if current_time - last_move_right > move_delay {
+                        game_state.move_right();
+                        last_move_right = current_time;
+                    }
+                } else {
+                    // Reset timer when key is released
+                    last_move_right = 0.0;
                 }
 
                 // Rotation
