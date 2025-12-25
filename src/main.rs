@@ -74,6 +74,11 @@ async fn main() {
 
         // Quit
         if is_key_pressed(KeyCode::Escape) {
+            // Save high score before quitting
+            if game_state.score > game_state.high_score {
+                game_state.high_score = game_state.score;
+                GameState::save_high_score(game_state.high_score);
+            }
             break;
         }
 

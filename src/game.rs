@@ -304,11 +304,8 @@ impl GameState {
 
         let num_lines = self.lines_being_cleared.len();
 
-        // Sort lines in descending order and remove them from highest to lowest
-        let mut sorted_lines = self.lines_being_cleared.clone();
-        sorted_lines.sort_by(|a, b| b.cmp(a));
-        
-        for &y in sorted_lines.iter() {
+        // Remove cleared lines (from highest to lowest to avoid index shifting issues)
+        for &y in self.lines_being_cleared.iter().rev() {
             self.grid.remove(y);
         }
 
@@ -581,7 +578,7 @@ impl GameState {
             .unwrap_or(0)
     }
 
-    fn save_high_score(score: u32) {
+    pub fn save_high_score(score: u32) {
         let _ = fs::write(HIGHSCORE_FILE, score.to_string());
     }
 

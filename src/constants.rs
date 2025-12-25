@@ -18,10 +18,24 @@ pub const UI_OFFSET_X: f32 = GRID_OFFSET_X + (GRID_WIDTH as f32 * BLOCK_SIZE) + 
 pub const UI_OFFSET_Y: f32 = 50.0;
 
 // Game timing
-pub const INITIAL_FALL_SPEED: f32 = 1.0; // seconds per row
+pub const INITIAL_FALL_SPEED: f32 = 1.0; // Base fall speed in seconds per row
 pub const FAST_DROP_SPEED: f32 = 0.05; // seconds per row when holding down
 pub const LOCK_DELAY: f32 = 0.5; // seconds before piece locks
-pub const LINE_CLEAR_ANIMATION_DURATION: f32 = 0.3; // seconds for line clear animation
+pub const LINE_CLEAR_ANIMATION_DURATION: f32 = 0.2; // seconds for line clear animation
+
+// Gravity speed curve (Standard Tetris Guidelines)
+// Returns fall speed in seconds per row for each level
+pub const GRAVITY_CURVE: &[(u32, f32)] = &[
+    (1, 1.00),   // Level 1
+    (2, 0.79),   // Level 2
+    (3, 0.61),   // Level 3
+    (4, 0.47),   // Level 4
+    (5, 0.36),   // Level 5
+    (6, 0.28),   // Level 6
+    (7, 0.21),   // Level 7
+    (8, 0.15),   // Level 8
+    (9, 0.10),   // Level 9+
+];
 
 // Scoring (Official Tetris Guidelines)
 pub const SCORE_SINGLE: u32 = 100;
@@ -30,6 +44,7 @@ pub const SCORE_TRIPLE: u32 = 500;
 pub const SCORE_TETRIS: u32 = 800;
 pub const SCORE_SOFT_DROP: u32 = 1;  // Points per cell (soft drop)
 pub const SCORE_HARD_DROP: u32 = 2;  // Points per cell (hard drop)
+pub const SCORE_COMBO_BONUS: u32 = 50; // Bonus per combo level * level
 
 // Colors
 pub const COLOR_BACKGROUND: Color = Color::new(0.1, 0.1, 0.12, 1.0);
