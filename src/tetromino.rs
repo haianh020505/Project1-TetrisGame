@@ -109,7 +109,7 @@ impl Tetromino {
     }
 
     pub fn rotate_cw(&mut self) {
-        // Don't rotate O piece
+        // Không xoay khối O
         if self.tetromino_type == TetrominoType::O {
             return;
         }
@@ -117,7 +117,7 @@ impl Tetromino {
         let n = self.shape.len();
         let mut rotated = vec![vec![0; n]; n];
 
-        // Rotate 90 degrees clockwise
+        // Xoay 90 độ theo chiều kim đồng hồ
         for i in 0..n {
             for j in 0..n {
                 rotated[j][n - 1 - i] = self.shape[i][j];
@@ -129,7 +129,7 @@ impl Tetromino {
     }
 
     pub fn rotate_ccw(&mut self) {
-        // Don't rotate O piece
+        // Không xoay khối O
         if self.tetromino_type == TetrominoType::O {
             return;
         }
@@ -137,7 +137,7 @@ impl Tetromino {
         let n = self.shape.len();
         let mut rotated = vec![vec![0; n]; n];
 
-        // Rotate 90 degrees counter-clockwise
+        // Xoay 90 độ ngược chiều kim đồng hồ
         for i in 0..n {
             for j in 0..n {
                 rotated[n - 1 - j][i] = self.shape[i][j];
@@ -165,7 +165,7 @@ impl Tetromino {
     }
 }
 
-// 7-Bag Randomizer
+// Bộ sinh ngẫu nhiên túi 7
 pub struct BagRandomizer {
     bag: Vec<TetrominoType>,
 }
